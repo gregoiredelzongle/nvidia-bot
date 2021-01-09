@@ -151,6 +151,7 @@ NO_SELLERS = [
     "Actualmente, no hay vendedores que puedan entregar este producto en tu ubicación.",
     "Il n’y a actuellement aucun vendeur en mesure de livrer ce produit sur votre zone géographique.",
     "Il n'y a actuellement pas de produits répondant à ces critères. Essayez de changer les filtres.",
+    "Actuellement, aucun vendeur ne correspond à aux filtres séléctionés et/ou à votre emplacement. Essayez de mettre à jour les filtres ou votre emplacement pour trouver d'autres vendeurs.",
     "No existen listados para esta búsqueda. Probar con otro filtro.",
     "In gibt es derzeit keine Listungen für dieses Produkt. Versuchen Sie, den Zustandstyp zu ändern.",
     "Al momento, non ci sono seller in grado di spedire questo articolo alla tua sede.",
@@ -598,10 +599,14 @@ class Amazon:
 
         timeout = self.get_timeout()
         while True:
+
+            # hotfix : flyout 
             atc_buttons = self.driver.find_elements_by_xpath(
-                '//*[@name="submit.addToCart"]'
-            )
+                    '//*[@data-action="aod-click-log"]/span/span/input'
+                )
+
             if atc_buttons:
+                atc_buttons.pop(0)
                 # Early out if we found buttons
                 break
 
@@ -612,6 +617,15 @@ class Amazon:
                 )
             except sel_exceptions.NoSuchElementException:
                 pass
+
+            # Try to check for the flyout element
+            if not test:
+                try:
+                    test = self.driver.find_element_by_xpath(
+                    '//*[@id="aod-filter-offer-count-string"]'
+                    )
+                except sel_exceptions.NoSuchElementException:
+                    pass
 
             if test and (test.text in NO_SELLERS):
                 return False
@@ -624,6 +638,11 @@ class Amazon:
             prices = self.driver.find_elements_by_xpath(
                 '//*[@class="a-size-large a-color-price olpOfferPrice a-text-bold"]'
             )
+            # Find prices in the flyout layout
+            if not prices:
+                prices = self.driver.find_elements_by_xpath(
+                '//*[@id="price_inside_buybox"]'
+                )
             if prices:
                 break
             if time.time() > timeout:
